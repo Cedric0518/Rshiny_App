@@ -1,0 +1,104 @@
+---
+title: "Projet de session"
+author: "Fatoumata Seck"
+date: "2024-10-28"
+output: html_document
+---
+```{r}
+source("package.R")
+user_behavior <- read.csv("user_behavior_dataset.csv", header = T, sep = ",")
+user_behavior
+```
+
+Créer les colones nécessaires à la représentation et aux analyses:
+
+```{r}
+# Calculer la moyenne du temps passé sur l'écran en dehors de mutate
+mean_screen_time <- mean(user_behavior$Screen.On.Time..hours.day., na.rm = TRUE)
+
+# Créer la colonne "Dépendance"
+user_behavior <- user_behavior %>%
+  mutate(Dépendance = case_when(
+    Screen.On.Time..hours.day. < mean_screen_time * 0.75 ~ "Faible",
+    Screen.On.Time..hours.day. > mean_screen_time * 1.25 ~ "Forte",
+    TRUE ~ "Moyenne"
+  ))
+
+
+
+user_behavior <- user_behavior %>%
+  mutate(Classe_d_age = case_when(
+    Age < 18 ~ "0-18",
+    Age >= 18 & Age < 25 ~ "18-25",
+    Age >= 25 & Age < 35 ~ "25-35",
+    Age >= 35 & Age < 45 ~ "35-45",
+    Age >= 45 & Age <= 60 ~ "45-60",
+    TRUE ~ "60+"
+  ))
+
+user_behavior
+# Enregistrer la base de données modifiée sous un nouveau fichier CSV
+write.csv(user_behavior, "user_behavior_dataset_modified.csv", row.names = FALSE)
+```
+
+```{r}
+ggplot(data = user_behavior, aes(Device.Model,Battery.Drain..mAh.day., fill = Operating.System)) + geom_col()
+```
+
+
+```{r}
+age_class$user_behavior <- mutate()
+ggplot(data = user_behavior,aes(x = ))
+```
+
+Calcul avec le principe de l'analyse des composantes principales:
+
+```{r}
+# Charger les données
+user_data <- read.csv("user_behavior_dataset_modified.csv")
+
+# Sélection des variables quantitatives
+quant_data <- user_data %>% select_if(is.numeric)
+
+# Exécution de l'ACP
+res_acp <- PCA(quant_data, graph = FALSE)
+
+# Visualisation des résultats de l'ACP
+fviz_pca_ind(res_acp, col.ind = "cos2", # Colorer par cos2
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE) # Éviter le chevauchement des étiquettes
+
+# Visualisation des variables
+fviz_pca_var(res_acp, col.var = "contrib", # Colorer par contribution
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+
+```
+Selon ceux de L'ACM l'analyse en composantes multiples:
+
+```{r}
+# Charger les données
+user_data <- read.csv("user_behavior_dataset_modified.csv")
+
+# Convertir les colonnes qualitatives en factor si nécessaire
+qual_data <- user_data %>%
+  mutate_if(~!is.numeric(.), as.factor) %>%
+  select_if(is.factor)
+
+# Vérifier les types de données dans qual_data
+str(qual_data)
+
+res_acm <- MCA(qual_data, graph = FALSE)
+
+# Visualisation des individus de l'ACM
+fviz_mca_ind(res_acm, col.ind = "cos2", # Colorer par cos2
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+
+# Visualisation des variables de l'ACM
+fviz_mca_var(res_acm, col.var = "contrib", # Colorer par contribution
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)
+
+```
+
