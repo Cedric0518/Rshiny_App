@@ -1,0 +1,116 @@
+
+```{r}
+# Charger tous les packages
+source("package.R")
+```
+
+# Charger les données initiales
+```{r}
+user_behavior <- read.csv("user_behavior_dataset.csv", header = TRUE, sep = ",")
+```
+
+
+
+# Ajouter les colonnes nécessaires
+```{r}
+mean_screen_time <- mean(user_behavior$Screen.On.Time..hours.day., na.rm = TRUE)
+
+user_behavior <- user_behavior %>%
+  mutate(
+    Dépendance = case_when(
+      Screen.On.Time..hours.day. < mean_screen_time * 0.75 ~ "Faible",
+      Screen.On.Time..hours.day. > mean_screen_time * 1.25 ~ "Forte",
+      TRUE ~ "Moyenne"
+    ),
+    Classe_d_age = case_when(
+      Age < 18 ~ "0-18",
+      Age >= 18 & Age < 25 ~ "18-25",
+      Age >= 25 & Age < 35 ~ "25-35",
+      Age >= 35 & Age < 45 ~ "35-45",
+      Age >= 45 & Age <= 60 ~ "45-60",
+      TRUE ~ "60+"
+    )
+  )
+
+```
+
+
+
+
+# UI
+```{r}
+ui <- fluidPage(
+  titlePanel("Analyse de la dependance des  utilisateurs en fonction de l'age"),
+  
+  tabsetPanel(
+    tabPanel(
+      "Dépendance et Classes d'âge",
+      sidebarLayout(
+        sidebarPanel(
+          selectInput(
+            "dependance_filter", 
+            "Filtrer par niveau de dépendance :",
+            choices = c("Toutes", unique(user_behavior$Dépendance))
+          ),
+          selectInput(
+            "age_class_filter", 
+            "Filtrer par classe d'âge :",
+            choices = c("Toutes", unique(user_behavior$Classe_d_age))
+          )
+        ),
+        mainPanel(
+          plotOutput("dependance_by_age_plot"),
+          DT::dataTableOutput("filtered_data_table")
+        )
+      )
+    )
+  )
+)
+
+```
+
+
+
+# Server
+```{r}
+
+server <- function(input, output, session) {
+  
+  # Filtrer les données en fonction des sélections
+  filtered_data <- reactive({
+    data <- user_behavior
+    if (input$dependance_filter != "Toutes") {
+      data <- data %>% filter(Dépendance == input$dependance_filter)
+    }
+    if (input$age_class_filter != "Toutes") {
+      data <- data %>% filter(Classe_d_age == input$age_class_filter)
+    }
+    data
+  })
+  
+  # Graphique : Dépendance par classe d'âge
+  output$dependance_by_age_plot <- renderPlot({
+    ggplot(filtered_data(), aes(x = Classe_d_age, fill = Dépendance)) +
+      geom_bar(position = "fill") + # Position "fill" pour les proportions
+      labs(
+        title = "Distribution des niveaux de dépendance par classe d'âge",
+        x = "Classe d'âge",
+        y = "Proportion",
+        fill = "Niveau de dépendance"
+      ) +
+      scale_y_continuous(labels = scales::percent) + # Afficher en pourcentage
+      theme_minimal()
+  })
+  
+  # Table des données filtrées
+  output$filtered_data_table <- DT::renderDataTable({
+    DT::datatable(filtered_data(), options = list(pageLength = 10))
+  })
+}
+```
+
+# Lancer l'application
+```{r}
+shinyApp(ui, server)
+```
+
