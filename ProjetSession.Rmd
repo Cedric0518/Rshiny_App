@@ -1,6 +1,6 @@
 ---
 title: "Projet de session"
-author: "Fatoumata Seck"
+author: "Fatoumata Seck; NJIKAM YOGWA NELSON I"
 date: "2024-10-28"
 output: html_document
 ---
