@@ -19,10 +19,10 @@ ui <- dashboardPage(
   
   dashboardSidebar(
     sidebarMenu(
+      menuItem("Tableau de Données", tabName = "data_table", icon = icon("table")),
       menuItem("Utilisation et Comportement", tabName = "usage", icon = icon("mobile")),
       menuItem("Démographie et Préférences", tabName = "demographics", icon = icon("users", class = "Classe_d_age")),
       menuItem("Relations et Corrélations", tabName = "correlations", icon = icon("chart-line")),
-      menuItem("Tableau de Données", tabName = "data_table", icon = icon("table")),
       menuItem("Analyses ACP et ACM", tabName = "analysis", icon = icon("project-diagram")),
       menuItem("Graphiques Avancés", tabName = "advanced_graphs", icon = icon("chart-bar"))
     ),
