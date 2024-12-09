@@ -112,18 +112,25 @@ server <- function(input, output, session) {
            x = "Classe de comportement", y = "Temps d'utilisation (min/jour)")
   })
   
-  # Diagramme circulaire de la répartition par sexe
+  # Diagramme circulaire de la répartition par sexe avec pourcentages
   output$pie_gender <- renderPlot({
     req(filtered_data())
+    
+    # Calcul des données
     gender_data <- filtered_data() %>%
       group_by(Gender) %>%
-      summarise(Count = n())
+      summarise(Count = n()) %>%
+      mutate(Percentage = Count / sum(Count) * 100) # Calcul des pourcentages
     
+    # Création du graphique
     ggplot(gender_data, aes(x = "", y = Count, fill = Gender)) +
       geom_bar(stat = "identity", width = 1) +
       coord_polar("y") +
+      geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+                position = position_stack(vjust = 0.5)) + # Ajout des pourcentages
       labs(title = "Répartition par sexe") +
-      theme_void()
+      theme_void() +
+      theme(legend.position = "right") # Position de la légende
   })
   
   # Graphique : Dépendance par classe d'âge
