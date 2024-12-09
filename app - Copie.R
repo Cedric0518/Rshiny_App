@@ -98,7 +98,7 @@ server <- function(input, output, session) {
   
   # Graphique de consommation de batterie par modèle
   output$bar_battery_usage <- renderPlot({
-    ggplot(user_behavior, aes(x = Device.Model, y = Battery.Drain..mAh.day., fill = Operating.System)) +
+    ggplot(data, aes(x = Device.Model, y = Battery.Drain..mAh.day., fill = Operating.System)) +
       geom_col() +
       theme_minimal()
   })
