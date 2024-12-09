@@ -194,7 +194,7 @@ server <- function(input, output, session) {
   # Barres Empilées Sexe/Classe de comportement
   output$stacked_bar_gender_behavior <- renderPlot({
     req(filtered_data())
-    ggplot(filtered_data(), aes(x = Gender, fill = as.factor(User.Behavior.Class))) +
+    ggplot(filtered_data(), aes(x = Gender, fill = as.factor(Dépendance))) +
       geom_bar(position = "stack") +
       labs(title = "Barres Empilées : Sexe et Classe de Comportement", 
            x = "Sexe", y = "Nombre d'utilisateurs", fill = "Classe de comportement")
