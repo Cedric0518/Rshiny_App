@@ -98,19 +98,9 @@ server <- function(input, output, session) {
   
   # Graphique de consommation de batterie par modèle
   output$bar_battery_usage <- renderPlot({
-    ggplot(data, aes(x = Device.Model, y = Battery.Drain..mAh.day., fill = Operating.System)) +
-      geom_bar(stat = "identity", position = position_dodge()) +
-      labs(
-        title = "Consommation de Batterie par Modèle et Système d'Exploitation",
-        x = "Modèle de l'Appareil",
-        y = "Consommation de Batterie (mAh/jour)",
-        fill = "Système d'exploitation"
-      ) +
-      theme_minimal() +
-      theme(
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "top"
-      )
+    ggplot(user_behavior, aes(x = Device.Model, y = Battery.Drain..mAh.day., fill = Operating.System)) +
+      geom_col() +
+      theme_minimal()
   })
   
   # Boxplot de l'utilisation des applications par classe de comportement
@@ -215,7 +205,7 @@ server <- function(input, output, session) {
     datatable(filtered_data(), options = list(pageLength = 10))
   })
   
-  # Analyse en composantes multiples (ACM)
+
   # Analyse en composantes multiples (ACM)
   output$analysis_plot_ind <- renderPlot({
     req(input$analysis_type)
