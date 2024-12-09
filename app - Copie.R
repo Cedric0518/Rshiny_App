@@ -1,3 +1,5 @@
+#Projet de session
+#"Fatoumata Seck; NJIKAM YOGWA NELSON I; KOBENAN KOUMAN DUA; CEDRIC KESSAHOU
 
 library(shiny)
 library(shinydashboard)
@@ -6,34 +8,27 @@ library(dplyr)
 library(DT)
 library(FactoMineR)
 library(factoextra)
+library(ggcorrplot)
 
 # Charger les données
 data <- read.csv("user_behavior_dataset_modified.csv")
 
 # Interface utilisateur avec shinydashboard
 ui <- dashboardPage(
-  dashboardHeader(title = "Analyse du Comportement des Utilisateurs",titleWidth = 450),
+  dashboardHeader(title = "Analyse du Comportement des Utilisateurs", titleWidth = 450),
   
   dashboardSidebar(
     sidebarMenu(
       menuItem("Utilisation et Comportement", tabName = "usage", icon = icon("mobile")),
-      menuItem("Démographie et Préférences", tabName = "demographics", icon = icon("users","Classe_d_age")),
+      menuItem("Démographie et Préférences", tabName = "demographics", icon = icon("users", class = "Classe_d_age")),
       menuItem("Relations et Corrélations", tabName = "correlations", icon = icon("chart-line")),
       menuItem("Tableau de Données", tabName = "data_table", icon = icon("table")),
-      menuItem("Analyses ACP et ACM", tabName = "analysis", icon = icon("project-diagram"))
+      menuItem("Analyses ACP et ACM", tabName = "analysis", icon = icon("project-diagram")),
+      menuItem("Graphiques Avancés", tabName = "advanced_graphs", icon = icon("chart-bar"))
     ),
-    selectInput("device", "Sélectionnez un modèle d'appareil :", 
-                choices = unique(data$Device.Model), 
-                selected = "Google Pixel 5", 
-                multiple = TRUE),
-    selectInput("os", "Sélectionnez un système d'exploitation :", 
-                choices = unique(data$Operating.System), 
-                selected = "Android", 
-                multiple = TRUE),
-    selectInput("class", "Sélectionnez la classe de comportement :", 
-                choices = unique(data$User.Behavior.Class), 
-                selected = unique(data$User.Behavior.Class), 
-                multiple = TRUE)
+    selectInput("device", "Sélectionnez un modèle d'appareil :", choices = unique(data$Device.Model), selected = "Google Pixel 5", multiple = TRUE),
+    selectInput("os", "Sélectionnez un système d'exploitation :", choices = unique(data$Operating.System), selected = "Android", multiple = TRUE),
+    selectInput("class", "Sélectionnez la classe de comportement :", choices = unique(data$User.Behavior.Class), selected = unique(data$User.Behavior.Class), multiple = TRUE)
   ),
   
   dashboardBody(
@@ -53,8 +48,9 @@ ui <- dashboardPage(
       
       tabItem(tabName = "correlations",
               fluidRow(
-                box(plotOutput("scatter_usage"), title = "Corrélation Temps d'Utilisation vs Temps d'Écran", status = "primary"),
-                box(plotOutput("heatmap_corr"), title = "Carte Thermique des Corrélations", status = "info")
+                box(plotOutput("scatter_usage"), title = "Relation avec Régression : Utilisation vs Batterie", status = "primary"),
+                box(plotOutput("heatmap_corr"), title = "Carte de Chaleur de la Consommation de Batterie", status = "info"),
+                box(plotOutput("corr_plot"), title = "Diagramme de Corrélation", status = "warning")
               )),
       
       tabItem(tabName = "data_table",
@@ -63,16 +59,20 @@ ui <- dashboardPage(
       tabItem(tabName = "analysis",
               selectInput("analysis_type", "Type d'analyse :", choices = c("ACP", "ACM")),
               box(plotOutput("analysis_plot_ind"), title = "Individus", status = "primary"),
-              box(plotOutput("analysis_plot_var"), title = "Variables", status = "warning"))
+              box(plotOutput("analysis_plot_var"), title = "Variables", status = "warning")),
+      
+      tabItem(tabName = "advanced_graphs",
+              fluidRow(
+                box(plotOutput("violin_apps_behavior"), title = "Violons par Classe de Comportement", status = "primary"),
+                box(plotOutput("density_battery_device"), title = "Densité de la Consommation de Batterie", status = "warning"),
+                box(plotOutput("stacked_bar_gender_behavior"), title = "Barres Empilées Sexe/Classe", status = "success")
+              ))
     )
   )
 )
 
-
-
 server <- function(input, output, session) {
   
-  # Filtrer les données en fonction des sélections de l'utilisateur
   filtered_data <- reactive({
     req(input$device, input$os, input$class)
     data %>%
@@ -81,7 +81,12 @@ server <- function(input, output, session) {
              User.Behavior.Class %in% input$class)
   })
   
-  ### Graphiques Utilisation et Classe de Comportement ###
+  # Calcul de la matrice de corrélation
+  cor_matrix <- reactive({
+    req(filtered_data())
+    cor(filtered_data() %>% select_if(is.numeric), use = "complete.obs")
+  })
+  
   # Histogramme de l'utilisation des applications
   output$hist_app_usage <- renderPlot({
     req(filtered_data())
@@ -90,13 +95,22 @@ server <- function(input, output, session) {
       labs(title = "Temps d'utilisation des applications", 
            x = "Temps (min/jour)", y = "Nombre d'utilisateurs")
   })
+  
   # Graphique de consommation de batterie par modèle
   output$bar_battery_usage <- renderPlot({
-    req(filtered_data())
-    ggplot(filtered_data(), aes(x = Device.Model, y = Battery.Drain..mAh.day., fill = Operating.System)) +
-      geom_col(position = "dodge") +
-      labs(title = "Consommation de batterie par modèle", x = "Modèle", y = "Batterie (mAh/jour)") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    ggplot(data, aes(x = Device.Model, y = Battery.Drain..mAh.day., fill = Operating.System)) +
+      geom_bar(stat = "identity", position = position_dodge()) +
+      labs(
+        title = "Consommation de Batterie par Modèle et Système d'Exploitation",
+        x = "Modèle de l'Appareil",
+        y = "Consommation de Batterie (mAh/jour)",
+        fill = "Système d'exploitation"
+      ) +
+      theme_minimal() +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top"
+      )
   })
   
   # Boxplot de l'utilisation des applications par classe de comportement
@@ -107,6 +121,7 @@ server <- function(input, output, session) {
       labs(title = "Utilisation des applications par classe de comportement", 
            x = "Classe de comportement", y = "Temps d'utilisation (min/jour)")
   })
+  
   # Diagramme circulaire de la répartition par sexe
   output$pie_gender <- renderPlot({
     req(filtered_data())
@@ -121,54 +136,86 @@ server <- function(input, output, session) {
       theme_void()
   })
   
-  
   # Graphique : Dépendance par classe d'âge
   output$dependance_by_age_plot <- renderPlot({
     ggplot(filtered_data(), aes(x = Classe_d_age, fill = Dépendance)) +
-      geom_bar(position = "fill") + # Position "fill" pour les proportions
+      geom_bar(position = "fill") + 
       labs(
         title = "Distribution des niveaux de dépendance par classe d'âge",
         x = "Classe d'âge",
         y = "Proportion",
         fill = "Niveau de dépendance"
       ) +
-      scale_y_continuous(labels = scales::percent) + # Afficher en pourcentage
+      scale_y_continuous(labels = scales::percent) +
       theme_minimal()
   })
   
-  # Nuage de points entre utilisation des applications et temps d'écran
+  # Graphique de régression : Relation Utilisation vs Batterie
   output$scatter_usage <- renderPlot({
     req(filtered_data())
-    ggplot(filtered_data(), aes(x = App.Usage.Time..min.day., y = Screen.On.Time..hours.day.)) +
-      geom_point(color = "purple") +
-      labs(title = "Corrélation entre utilisation des applications et temps d'écran", 
-           x = "Temps d'utilisation (min/jour)", y = "Temps d'écran (heures/jour)")
+    ggplot(filtered_data(), aes(x = App.Usage.Time..min.day., y = Battery.Drain..mAh.day., color = Operating.System)) +
+      geom_point(alpha = 0.7) +
+      geom_smooth(method = "lm", se = FALSE, color = "black") +
+      labs(title = "Relation avec Régression : Utilisation vs Batterie",
+           x = "Utilisation des Applications (minutes/jour)",
+           y = "Consommation de Batterie (mAh/jour)",
+           color = "Système d'exploitation") +
+      theme_minimal()
   })
-  
-  
-  # Nuage de points entre utilisation des applications et temps d'écran
-  output$scatter_usage <- renderPlot({
-    req(filtered_data())
-    ggplot(filtered_data(), aes(x = App.Usage.Time..min.day., y = Battery.Drain..mAh.day.)) +
-      geom_point(color = "purple") +
-      labs(title = "Corrélation entre utilisation des applications et la durée de vie de la batterie", 
-           x = "Temps d'utilisation (min/jour)", y = "Durée de vie batterie (jour)")
-  })
-  
-  # Carte thermique des corrélations
+  # Carte de Chaleur : Consommation de Batterie par Système d'Exploitation et Modèle d'Appareil
   output$heatmap_corr <- renderPlot({
     req(filtered_data())
-    correlation_data <- filtered_data() %>%
-      select(App.Usage.Time..min.day., Screen.On.Time..hours.day., Battery.Drain..mAh.day., 
-             Number.of.Apps.Installed, Data.Usage..MB.day., Age) %>%
-      cor(use = "complete.obs")
-    
-    ggplot(data = as.data.frame(as.table(correlation_data)), aes(x = Var1, y = Var2, fill = Freq)) +
+    ggplot(filtered_data(), aes(x = Operating.System, y = Device.Model, fill = Battery.Drain..mAh.day.)) +
       geom_tile() +
-      scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
-      labs(title = "Carte thermique des corrélations")
+      scale_fill_gradient(low = "white", high = "red") +
+      labs(title = "Carte de Chaleur de la Consommation de Batterie",
+           x = "Système d'exploitation", y = "Modèle de l'appareil",
+           fill = "Consommation (mAh/jour)") +
+      theme_minimal()
   })
   
+  # Diagramme de corrélation
+  output$corr_plot <- renderPlot({
+    req(cor_matrix())  # Utilisation du calcul réactif de la matrice de corrélation
+    ggcorrplot(cor_matrix(), 
+               lab = TRUE,  # Afficher les valeurs de corrélation
+               lab_size = 4,  # Taille du texte des valeurs de corrélation
+               title = "Diagramme de Corrélation", 
+               colors = c("blue", "white", "red"))  # Couleurs pour la matrice de corrélation
+  })
+  # Violons par Classe de Comportement
+  output$violin_apps_behavior <- renderPlot({
+    req(filtered_data())
+    ggplot(filtered_data(), aes(x = as.factor(User.Behavior.Class), y = App.Usage.Time..min.day.)) +
+      geom_violin(fill = "lightblue", color = "darkblue") +
+      labs(title = "Distribution de l'utilisation des applications par classe de comportement", 
+           x = "Classe de comportement", y = "Temps d'utilisation (min/jour)")
+  })
+  
+  # Densité de la consommation de batterie
+  output$density_battery_device <- renderPlot({
+    req(filtered_data())
+    ggplot(filtered_data(), aes(x = Battery.Drain..mAh.day., fill = Device.Model)) +
+      geom_density(alpha = 0.6) +
+      labs(title = "Densité de la Consommation de Batterie par Modèle", 
+           x = "Consommation de Batterie (mAh/jour)", y = "Densité")
+  })
+  
+  # Barres Empilées Sexe/Classe de comportement
+  output$stacked_bar_gender_behavior <- renderPlot({
+    req(filtered_data())
+    ggplot(filtered_data(), aes(x = Gender, fill = as.factor(User.Behavior.Class))) +
+      geom_bar(position = "stack") +
+      labs(title = "Barres Empilées : Sexe et Classe de Comportement", 
+           x = "Sexe", y = "Nombre d'utilisateurs", fill = "Classe de comportement")
+  })
+  
+  # Table des données filtrées
+  output$data_table <- renderDT({
+    datatable(filtered_data(), options = list(pageLength = 10))
+  })
+  
+  # Analyse en composantes multiples (ACM)
   # Analyse en composantes multiples (ACM)
   output$analysis_plot_ind <- renderPlot({
     req(input$analysis_type)
@@ -215,18 +262,16 @@ server <- function(input, output, session) {
         na.omit()
       res_acp <- PCA(quant_data, graph = FALSE)
       fviz_pca_var(res_acp, col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
-      } else if (input$analysis_type == "ACM") {
-          qual_data <- data %>%
-            mutate_if(~!is.numeric(.), as.factor) %>%
-            select_if(is.factor)
-          res_acm <- MCA(qual_data, graph = FALSE)
-          fviz_mca_var(res_acm, col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
-        }
-      
-  
+    } else if (input$analysis_type == "ACM") {
+      qual_data <- data %>%
+        mutate_if(~!is.numeric(.), as.factor) %>%
+        select_if(is.factor)
+      res_acm <- MCA(qual_data, graph = FALSE)
+      fviz_mca_var(res_acm, col.var = "contrib", gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+    }
+    
+    
   })
 }
 
-
-# Lancer l'application
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)

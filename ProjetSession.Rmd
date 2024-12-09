@@ -1,6 +1,6 @@
 ---
 title: "Projet de session"
-author: "Fatoumata Seck; NJIKAM YOGWA NELSON I"
+author: "Fatoumata Seck; NJIKAM YOGWA NELSON I; KOBENAN KOUMAN DUA; CEDRIC KESSAHOU"
 date: "2024-10-28"
 output: html_document
 ---
@@ -19,10 +19,11 @@ mean_screen_time <- mean(user_behavior$Screen.On.Time..hours.day., na.rm = TRUE)
 # Créer la colonne "Dépendance"
 user_behavior <- user_behavior %>%
   mutate(Dépendance = case_when(
-    Screen.On.Time..hours.day. < mean_screen_time * 0.75 ~ "Faible",
-    Screen.On.Time..hours.day. > mean_screen_time * 1.25 ~ "Forte",
-    TRUE ~ "Moyenne"
-  ))
+    User.Behavior.Class == 1 ~ "Très Faible",
+    User.Behavior.Class == 2 ~ "Faible",
+    User.Behavior.Class == 3 ~ "Moyenne",
+    User.Behavior.Class == 4 ~ "Forte",
+    User.Behavior.Class == 5 ~ " Très Forte" ))
 
 
 
@@ -47,8 +48,8 @@ ggplot(data = user_behavior, aes(Device.Model,Battery.Drain..mAh.day., fill = Op
 
 
 ```{r}
-age_class$user_behavior <- mutate()
-ggplot(data = user_behavior,aes(x = ))
+#age_class$user_behavior <- mutate()
+#ggplot(data = user_behavior,aes(x = ))
 ```
 
 Calcul avec le principe de l'analyse des composantes principales:
@@ -99,6 +100,130 @@ fviz_mca_ind(res_acm, col.ind = "cos2", # Colorer par cos2
 fviz_mca_var(res_acm, col.var = "contrib", # Colorer par contribution
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)
+
+```
+
+
+
+```{r}
+library(fmsb)
+library(dplyr)
+
+# Charger les données
+user_data <- read.csv("user_behavior_dataset_modified.csv") # Adapter le chemin
+
+# Préparer les données pour le graphique radar
+radar_data <- user_data %>%
+  group_by(Device.Model) %>%
+  summarise(
+    Avg_Usage = mean(App.Usage.Time..min.day., na.rm = TRUE),
+    Avg_Battery = mean(Battery.Drain..mAh.day., na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# Ajouter une colonne fictive pour éviter l'erreur
+radar_data <- radar_data %>%
+  mutate(Fictitious_Variable = runif(nrow(radar_data), min = 0, max = 1)) # Colonne aléatoire
+
+# Ajouter les lignes max et min pour définir l'échelle
+max_values <- apply(radar_data[, -1], 2, max, na.rm = TRUE)
+min_values <- apply(radar_data[, -1], 2, min, na.rm = TRUE)
+
+radar_data <- rbind(
+  max = max_values,
+  min = min_values,
+  radar_data[, -1]
+)
+
+# Créer le graphique radar
+par(mar = c(1, 1, 2, 1)) # Ajuster les marges pour éviter les erreurs
+radarchart(as.data.frame(radar_data), 
+           axistype = 1,                    # Type des axes
+           pcol = rainbow(nrow(radar_data) - 2), # Couleurs
+           plty = 1,                        # Type de ligne
+           title = "Comparaison des Modèles") # Titre du graphique
+
+# Ajouter une légende
+legend("topright", 
+       legend = unique(user_data$Device.Model), 
+       col = rainbow(nrow(radar_data) - 2), 
+       lty = 1, 
+       cex = 0.8)
+
+
+```
+
+
+```{r}
+# Créer le graphique de l'évolution de la consommation de batterie
+ggplot(user_data, aes(x = as.Date(Date), y = Battery.Drain..mAh.day., color = Operating.System)) +
+  geom_line(size = 1) +
+  labs(title = "Évolution de la Consommation de Batterie",
+       x = "Date", y = "Consommation de Batterie (mAh/jour)",
+       color = "Système d'exploitation") +
+  theme_minimal()
+
+```
+
+```{r}
+# Créer une carte de chaleur
+ggplot(user_data, aes(x = Operating.System, y = Device.Model, fill = Battery.Drain..mAh.day.)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "red") +
+  labs(title = "Carte de Chaleur de la Consommation de Batterie",
+       x = "Système d'exploitation", y = "Modèle de l'appareil",
+       fill = "Consommation (mAh/jour)") +
+  theme_minimal()
+
+
+# Installer le package ggcorrplot si ce n'est pas déjà fait
+#install.packages("ggcorrplot")
+library(ggcorrplot)
+
+# Calculer la matrice de corrélation
+cor_matrix <- cor(user_data[, sapply(user_data, is.numeric)], use = "complete.obs")
+
+# Créer un diagramme de corrélation avec les valeurs de corrélation dessus
+ggcorrplot(cor_matrix, 
+           lab = TRUE,  # Afficher les valeurs de corrélation
+           lab_size = 4,  # Taille du texte des valeurs de corrélation
+           title = "Diagramme de Corrélation", 
+           colors = c("blue", "white", "red"))  # Couleurs pour la matrice de corrélation
+
+```
+
+```{r}
+# Créer un graphique de dispersion avec une régression
+ggplot(user_data, aes(x = App.Usage.Time..min.day., y = Battery.Drain..mAh.day., color = Operating.System)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(title = "Relation avec Régression : Utilisation vs Batterie",
+       x = "Utilisation des Applications (minutes/jour)",
+       y = "Consommation de Batterie (mAh/jour)",
+       color = "Système d'exploitation") +
+  theme_minimal()
+```
+
+
+```{r}
+library(plotly)
+
+# Créer un graphique à bulles interactif avec Plotly
+plot_ly(user_data, 
+        x = ~App.Usage.Time..min.day., 
+        y = ~Battery.Drain..mAh.day.,
+        type = 'scatter', 
+        mode = 'markers',
+        color = ~Operating.System, 
+        size = ~Battery.Drain..mAh.day.,
+        marker = list(opacity = 0.7)) %>%
+  layout(title = "Graphique à Bulles Interactif",
+         xaxis = list(title = "Utilisation (minutes/jour)"),
+         yaxis = list(title = "Consommation de Batterie (mAh/jour)"))
+```
+
+
+```{r}
 
 ```
 
